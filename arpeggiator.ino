@@ -100,22 +100,21 @@ void loop() {
 
   if (tick - time > tempo) {
     
+    // stop the previous note
     MIDI.sendNoteOff(notes[playBeat],0,1);
     
     if (notesHeld > 0) { 
-      digitalWrite(STAT1,HIGH);
       time = tick;
       playBeat++;
       if (notes[playBeat] == '\0')
         playBeat=0;
 
+      // trigger the current note
       MIDI.sendNoteOn(notes[playBeat],127,1);
     }
   }
-  if (blinkOn && tick - blinkTime > 30) {
-    digitalWrite(STAT1,HIGH);
-    blinkOn = false;    
-  }
+  
+  // turn the LED on when playing a note
   if (tick - blinkTime > tempo) {
     if (!blinkOn) {
       digitalWrite(STAT1,LOW);
@@ -123,6 +122,11 @@ void loop() {
       blinkTime = millis();
     }
 
+  }
+  // turn the LED off at the end of a blink
+  if (blinkOn && tick - blinkTime > 30) {
+    digitalWrite(STAT1,HIGH);
+    blinkOn = false;    
   }
 }
 
