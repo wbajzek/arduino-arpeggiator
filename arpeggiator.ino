@@ -3,6 +3,9 @@
 
 #define STAT1  7
 #define STAT2  6
+#define BUTTON1  2
+#define BUTTON2  3
+#define BUTTON3  4
 
 
 byte notes[10];
@@ -10,17 +13,26 @@ int tempo;
 unsigned long time;
 unsigned long blinkTime;
 int playBeat;
-int notesHeld=0;
+int notesHeld;
 boolean blinkOn;
+boolean hold;
 
 void setup() {
   blinkTime = time = millis();
   notesHeld = 0;
   playBeat=0;
   blinkOn = false;
+  hold=true;
 
   pinMode(STAT1,OUTPUT);   
   pinMode(STAT2,OUTPUT);
+  pinMode(BUTTON1,INPUT);
+  pinMode(BUTTON2,INPUT);
+  pinMode(BUTTON3,INPUT);
+  
+  digitalWrite(BUTTON1,HIGH);
+  digitalWrite(BUTTON2,HIGH);
+  digitalWrite(BUTTON3,HIGH);
 
   // Initiate MIDI communications, listen to all channels
   MIDI.begin(MIDI_CHANNEL_OMNI);    
@@ -47,18 +59,21 @@ void HandleNoteOn(byte channel, byte pitch, byte velocity) {
 
   if (velocity == 0)
     notesHeld--;
-  else
+  else {
+    if (notesHeld==0 && hold) 
+        resetNotes();
     notesHeld++;
-
+  }
   if (notesHeld > 0)
     digitalWrite(STAT2,LOW);
   else
     digitalWrite(STAT2,HIGH);
 
+
   for (int i = 0; i < sizeof(notes); i++) {
 
     if (velocity == 0) {
-      if (notes[i] >= pitch) {
+      if (!hold && notes[i] >= pitch) {
         // remove this note
         if (i < sizeof(notes))
           notes[i] = notes[i+1];
@@ -92,27 +107,8 @@ void HandleControlChange (byte channel, byte number, byte value) {
 }
 
 void loop() {
-  // Call MIDI.read the fastest you can for real-time performance.
-  MIDI.read();
 
-  tempo = (analogRead(1)/8)*10 + 80;
   unsigned int tick = millis();
-
-  if (tick - time > tempo) {
-    
-    // stop the previous note
-    MIDI.sendNoteOff(notes[playBeat],0,1);
-    
-    if (notesHeld > 0) { 
-      time = tick;
-      playBeat++;
-      if (notes[playBeat] == '\0')
-        playBeat=0;
-
-      // trigger the current note
-      MIDI.sendNoteOn(notes[playBeat],127,1);
-    }
-  }
   
   // turn the LED on when playing a note
   if (tick - blinkTime > tempo) {
@@ -128,7 +124,46 @@ void loop() {
     digitalWrite(STAT1,HIGH);
     blinkOn = false;    
   }
+  
+  if (button(BUTTON1)) {
+    hold = !hold;
+  }
+  if (button(BUTTON3) || button(BUTTON1))
+    resetNotes();
+
+
+
+  // Call MIDI.read the fastest you can for real-time performance.
+  MIDI.read();
+  
+  
+  tempo = (analogRead(1)/8)*10 + 80;
+
+  if (tick - time > tempo) {
+    
+    // stop the previous note
+    MIDI.sendNoteOff(notes[playBeat],0,1);
+    
+    if ((hold || notesHeld > 0) && notes[0] != '\0') { 
+      time = tick;
+      playBeat++;
+      if (notes[playBeat] == '\0')
+        playBeat=0;
+
+      // trigger the current note
+      MIDI.sendNoteOn(notes[playBeat],127,1);
+    }
+  }
+  
+
 }
 
+void resetNotes() {
+  for (int i = 0; i < sizeof(notes); i++)
+    notes[i] = '\0';
+}
 
-
+char button(char button_num)
+{
+  return (!(digitalRead(button_num)));
+}
