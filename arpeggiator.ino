@@ -1,11 +1,16 @@
 #include <MIDI.h>
 
 
-#define STAT1  7
-#define STAT2  6
+#define STAT1    7
+#define STAT2    6
 #define BUTTON1  2
 #define BUTTON2  3
 #define BUTTON3  4
+
+#define UP      0;
+#define DOWN    1;
+#define UPDOWN  2;
+#define MODES   3;
 
 
 byte notes[10];
@@ -14,8 +19,14 @@ unsigned long time;
 unsigned long blinkTime;
 int playBeat;
 int notesHeld;
+int mode;
 boolean blinkOn;
 boolean hold;
+boolean buttonOneDown;
+boolean buttonTwoDown;
+boolean buttonThreeDown;
+boolean bypass;
+boolean midiThruOn;
 
 void setup() {
   blinkTime = time = millis();
@@ -23,13 +34,16 @@ void setup() {
   playBeat=0;
   blinkOn = false;
   hold=true;
+  buttonOneDown = buttonTwoDown = buttonThreeDown = false;
+  mode=0;
+  bypass = midiThruOn = false;
 
   pinMode(STAT1,OUTPUT);   
   pinMode(STAT2,OUTPUT);
   pinMode(BUTTON1,INPUT);
   pinMode(BUTTON2,INPUT);
   pinMode(BUTTON3,INPUT);
-  
+
   digitalWrite(BUTTON1,HIGH);
   digitalWrite(BUTTON2,HIGH);
   digitalWrite(BUTTON3,HIGH);
@@ -61,7 +75,7 @@ void HandleNoteOn(byte channel, byte pitch, byte velocity) {
     notesHeld--;
   else {
     if (notesHeld==0 && hold) 
-        resetNotes();
+      resetNotes();
     notesHeld++;
   }
   if (notesHeld > 0)
@@ -108,54 +122,111 @@ void HandleControlChange (byte channel, byte number, byte value) {
 
 void loop() {
 
-  unsigned int tick = millis();
-  
-  // turn the LED on when playing a note
-  if (tick - blinkTime > tempo) {
-    if (!blinkOn) {
-      digitalWrite(STAT1,LOW);
-      blinkOn = true;
-      blinkTime = millis();
-    }
-
-  }
-  // turn the LED off at the end of a blink
-  if (blinkOn && tick - blinkTime > 30) {
-    digitalWrite(STAT1,HIGH);
-    blinkOn = false;    
-  }
-  
-  if (button(BUTTON1)) {
-    hold = !hold;
-  }
-  if (button(BUTTON3) || button(BUTTON1))
-    resetNotes();
-
-
-
   // Call MIDI.read the fastest you can for real-time performance.
   MIDI.read();
+//  
+//  if (buttonOneDown && buttonThreeDown)
+//    bypass = !bypass;
+//    
+//  if (bypass) {
+//    if (!midiThruOn) {
+//      MIDI.turnThruOn();
+//      digitalWrite(STAT1,HIGH);
+//    }
+//    return;
+//  }
+//  else
+//    if (midiThruOn) {
+//      MIDI.turnThruOff();
+//      digitalWrite(STAT1,LOW);
+//    }
+
+
   
-  
+  unsigned int tick = millis();
+  boolean buttonOnePressed = button(BUTTON1);
+  boolean buttonTwoPressed = button(BUTTON2);
+  boolean buttonThreePressed = button(BUTTON3);
+
+
+  if (buttonOnePressed) {
+    if (!buttonOneDown) {
+      hold = !hold;
+      buttonOneDown = true;
+      resetNotes();
+    }
+  }
+  else
+    buttonOneDown = false;
+
+  if (buttonTwoPressed) {
+    if (!buttonTwoDown) {
+      buttonTwoDown = true;
+      playBeat=0;
+      mode++;
+      if (mode == 2) {
+        mode=0;
+      }
+    }
+  }
+  else
+    buttonTwoDown = false;
+
+
+  if (buttonThreePressed) {
+    buttonThreeDown = true;
+    resetNotes();
+  }
+  else
+    buttonThreeDown = false;
+
+
+
+
+
   tempo = (analogRead(1)/8)*10 + 80;
 
   if (tick - time > tempo) {
-    
+
+    if (blinkOn) {
+      digitalWrite(STAT1,LOW);
+      blinkOn = false;
+    }
+    else {
+      digitalWrite(STAT1,HIGH);
+      blinkOn = true; 
+    }
     // stop the previous note
     MIDI.sendNoteOff(notes[playBeat],0,1);
-    
+
     if ((hold || notesHeld > 0) && notes[0] != '\0') { 
       time = tick;
-      playBeat++;
-      if (notes[playBeat] == '\0')
-        playBeat=0;
+      
+      if (mode == 0) {
+        playBeat++;
+        if (notes[playBeat] == '\0')
+          playBeat=0;        
+      }
+      else if (mode == 1) {
+        if (playBeat == 0) {
+          playBeat = sizeof(notes)-1;
+          while (notes[playBeat] == '\0') {
+            playBeat--;
+          }
+        }        
+        else       
+          playBeat--;
+      }
+      
 
       // trigger the current note
-      MIDI.sendNoteOn(notes[playBeat],127,1);
+      int velocity = 127 - analogRead(0)/8;
+      if (velocity == 0)
+        velocity++;
+      MIDI.sendNoteOn(notes[playBeat],velocity,1);
+
     }
   }
-  
-
 }
 
 void resetNotes() {
@@ -167,3 +238,4 @@ char button(char button_num)
 {
   return (!(digitalRead(button_num)));
 }
+
