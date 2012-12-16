@@ -18,9 +18,9 @@ unsigned long tempo;
 unsigned long lastTime;
 unsigned long blinkTime;
 unsigned long tick;
-unsigned long buttonOneDebounceTime;
-unsigned long buttonTwoDebounceTime;
-unsigned long buttonThreeDebounceTime;
+unsigned long buttonOneHeldTime;
+unsigned long buttonTwoHeldTime;
+unsigned long buttonThreeHeldTime;
 unsigned long debounceTime;
 int playBeat;
 int notesHeld;
@@ -35,7 +35,7 @@ boolean midiThruOn;
 
 void setup() {
   blinkTime = lastTime = millis();
-  buttonOneDebounceTime = buttonTwoDebounceTime = buttonThreeDebounceTime = 0;
+  buttonOneHeldTime = buttonTwoHeldTime = buttonThreeHeldTime = 0;
   notesHeld = 0;
   playBeat=0;
   blinkOn = false;
@@ -73,7 +73,7 @@ void setup() {
 // This function will be automatically called when a NoteOn is received.
 // It must be a void-returning function with the correct parameters,
 // see documentation here: 
-// http://arduinomidilib.sourceforge.net/class_m_i_d_i___class.html
+// http://arduinomidilib.sourceforge.net/
 
 void HandleNoteOn(byte channel, byte pitch, byte velocity) { 
 
@@ -132,23 +132,7 @@ void loop() {
 
   // Call MIDI.read the fastest you can for real-time performance.
   MIDI.read();
-//  
-//  if (buttonOneDown && buttonThreeDown)
-//    bypass = !bypass;
-//    
-//  if (bypass) {
-//    if (!midiThruOn) {
-//      MIDI.turnThruOn();
-//      digitalWrite(STAT1,HIGH);
-//    }
-//    return;
-//  }
-//  else
-//    if (midiThruOn) {
-//      MIDI.turnThruOff();
-//      digitalWrite(STAT1,LOW);
-//    }
-
+  
 
   cli();
   tick = millis();
@@ -158,20 +142,22 @@ void loop() {
   boolean buttonTwoPressed = button(BUTTON2);
   boolean buttonThreePressed = button(BUTTON3);
 
-
-
   if (buttonOnePressed) {
     if (!buttonOneDown) {
       buttonOneDown = true;
+      buttonOneHeldTime = tick;
       hold = !hold;
       resetNotes();
     }
   }
-  else
+  else {
     buttonOneDown = false;
+    buttonOneHeldTime = 0;
+  }
 
   if (buttonTwoPressed) {
     if (!buttonTwoDown) {
+      buttonTwoHeldTime = tick;
       buttonTwoDown = true;
       playBeat=0;
       mode++;
@@ -180,19 +166,22 @@ void loop() {
       }
     }
   }
-  else
+  else {
     buttonTwoDown = false;
-
+    buttonTwoHeldTime = 0;
+  }
 
   if (buttonThreePressed) {
-    if (buttonThreeDown) {
-      buttonThreeDown = true;
       resetNotes();
-    }
+      if (!buttonThreeDown) {
+        buttonThreeDown = true;
+        buttonThreeHeldTime = tick;
+      }
   }
-  else
+  else {
     buttonThreeDown = false;
-
+    buttonThreeHeldTime = 0;
+  }
 
 
 
