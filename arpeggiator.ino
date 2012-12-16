@@ -7,11 +7,11 @@
 #define BUTTON2  3
 #define BUTTON3  4
 
-#define UP      0;
-#define DOWN    1;
-#define UPDOWN  2;
-#define MODES   3;
 
+const int UP     = 0;
+const int DOWN   = 1;
+const int UPDOWN = 2;
+const int MODES  = 3;
 
 byte notes[10];
 unsigned long tempo;
@@ -32,6 +32,7 @@ boolean buttonTwoDown;
 boolean buttonThreeDown;
 boolean bypass;
 boolean midiThruOn;
+boolean upDownUp;
 
 void setup() {
   blinkTime = lastTime = millis();
@@ -40,6 +41,7 @@ void setup() {
   playBeat=0;
   blinkOn = false;
   hold=true;
+  upDownUp = true; // used to determine which way arp is going when in updown mode
   buttonOneDown = buttonTwoDown = buttonThreeDown = false;
   mode=0;
   bypass = midiThruOn = false;
@@ -161,7 +163,7 @@ void loop() {
       buttonTwoDown = true;
       playBeat=0;
       mode++;
-      if (mode == 2) {
+      if (mode == MODES) {
         mode=0;
       }
     }
@@ -203,12 +205,12 @@ void loop() {
     
     if ((hold || notesHeld > 0) && notes[0] != '\0') { 
       
-      if (mode == 0) {
+      if (mode == UP) {
         playBeat++;
         if (notes[playBeat] == '\0')
           playBeat=0;        
       }
-      else if (mode == 1) {
+      else if (mode == DOWN) {
         if (playBeat == 0) {
           playBeat = sizeof(notes)-1;
           while (notes[playBeat] == '\0') {
@@ -217,6 +219,24 @@ void loop() {
         }        
         else       
           playBeat--;
+      }
+      else if (mode == UPDOWN) {
+        if (upDownUp) {
+          if (notes[playBeat+1] == '\0') {
+            upDownUp = false;           
+            playBeat--;
+          }    
+          else
+            playBeat++;   
+        }
+        else {
+          if (playBeat == 0) {
+            upDownUp = true;
+            playBeat++;
+          }
+          else
+            playBeat--;
+        }
       }
       
 
