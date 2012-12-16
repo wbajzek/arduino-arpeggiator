@@ -14,9 +14,14 @@
 
 
 byte notes[10];
-int tempo;
-unsigned long time;
+unsigned long tempo;
+unsigned long lastTime;
 unsigned long blinkTime;
+unsigned long tick;
+unsigned long buttonOneDebounceTime;
+unsigned long buttonTwoDebounceTime;
+unsigned long buttonThreeDebounceTime;
+unsigned long debounceTime;
 int playBeat;
 int notesHeld;
 int mode;
@@ -29,7 +34,8 @@ boolean bypass;
 boolean midiThruOn;
 
 void setup() {
-  blinkTime = time = millis();
+  blinkTime = lastTime = millis();
+  buttonOneDebounceTime = buttonTwoDebounceTime = buttonThreeDebounceTime = 0;
   notesHeld = 0;
   playBeat=0;
   blinkOn = false;
@@ -37,6 +43,8 @@ void setup() {
   buttonOneDown = buttonTwoDown = buttonThreeDown = false;
   mode=0;
   bypass = midiThruOn = false;
+  tempo = 400;
+  debounceTime = 10;
 
   pinMode(STAT1,OUTPUT);   
   pinMode(STAT2,OUTPUT);
@@ -142,17 +150,20 @@ void loop() {
 //    }
 
 
+  cli();
+  tick = millis();
+  sei();
   
-  unsigned int tick = millis();
   boolean buttonOnePressed = button(BUTTON1);
   boolean buttonTwoPressed = button(BUTTON2);
   boolean buttonThreePressed = button(BUTTON3);
 
 
+
   if (buttonOnePressed) {
     if (!buttonOneDown) {
-      hold = !hold;
       buttonOneDown = true;
+      hold = !hold;
       resetNotes();
     }
   }
@@ -174,8 +185,10 @@ void loop() {
 
 
   if (buttonThreePressed) {
-    buttonThreeDown = true;
-    resetNotes();
+    if (buttonThreeDown) {
+      buttonThreeDown = true;
+      resetNotes();
+    }
   }
   else
     buttonThreeDown = false;
@@ -183,24 +196,23 @@ void loop() {
 
 
 
+  tempo = 6000 / ((127-analogRead(1)/8) + 10);
 
-  tempo = (analogRead(1)/8)*10 + 80;
+  if (blinkOn && tick - blinkTime > 50) {
+    blinkOn=false;
+    digitalWrite(STAT1,HIGH);
+  }
+  if (tick - lastTime > tempo) {
+    blinkTime = lastTime = tick;
+    digitalWrite(STAT1,LOW);
+    blinkOn = true;
 
-  if (tick - time > tempo) {
 
-    if (blinkOn) {
-      digitalWrite(STAT1,LOW);
-      blinkOn = false;
-    }
-    else {
-      digitalWrite(STAT1,HIGH);
-      blinkOn = true; 
-    }
     // stop the previous note
     MIDI.sendNoteOff(notes[playBeat],0,1);
 
+    
     if ((hold || notesHeld > 0) && notes[0] != '\0') { 
-      time = tick;
       
       if (mode == 0) {
         playBeat++;
@@ -224,7 +236,6 @@ void loop() {
       if (velocity == 0)
         velocity++;
       MIDI.sendNoteOn(notes[playBeat],velocity,1);
-
     }
   }
 }
