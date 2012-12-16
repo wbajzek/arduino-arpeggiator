@@ -221,22 +221,25 @@ void loop() {
           playBeat--;
       }
       else if (mode == UPDOWN) {
-        if (upDownUp) {
-          if (notes[playBeat+1] == '\0') {
-            upDownUp = false;           
-            playBeat--;
-          }    
-          else
-            playBeat++;   
-        }
-        else {
-          if (playBeat == 0) {
-            upDownUp = true;
-            playBeat++;
+        if (sizeof(notes) == 1)
+          playBeat=0;
+        else
+          if (upDownUp) {
+            if (notes[playBeat+1] == '\0') {
+              upDownUp = false;           
+              playBeat--;
+            }    
+            else
+              playBeat++;   
           }
-          else
-            playBeat--;
-        }
+          else {
+            if (playBeat == 0) {
+              upDownUp = true;
+              playBeat++;
+            }
+            else
+              playBeat--;
+          }
       }
       
 
