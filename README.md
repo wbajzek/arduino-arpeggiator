@@ -7,7 +7,7 @@ It works, but the button interaction is a bit flaky. I need to figure that out.
 
 Button D2 = Toggle hold-mode on/off
 
-Button D3 = Arp mode (currently up or down)
+Button D3 = Cycle through arpeggio modes (up, down, up-down, one-three)
 
 Button D4 = Stop arpeggio
 
