@@ -11,11 +11,12 @@
 #define BUTTON2  3
 #define BUTTON3  4
 
-const int CHANNEL = 1;
-const int UP      = 0;
-const int DOWN    = 1;
-const int UPDOWN  = 2;
-const int MODES   = 3;
+const int CHANNEL  = 1;
+const int UP       = 0;
+const int DOWN     = 1;
+const int UPDOWN   = 2;
+const int ONETHREE = 3;
+const int MODES    = 4;
 
 byte notes[10];
 unsigned long tempo;
@@ -36,7 +37,7 @@ boolean buttonTwoDown;
 boolean buttonThreeDown;
 boolean bypass;
 boolean midiThruOn;
-boolean upDownUp;
+boolean arpUp;
 
 void setup() {
   blinkTime = lastTime = millis();
@@ -45,9 +46,9 @@ void setup() {
   playBeat=0;
   blinkOn = false;
   hold=true;
-  upDownUp = true; // used to determine which way arp is going when in updown mode
+  arpUp = true; // used to determine which way arp is going when in updown mode
   buttonOneDown = buttonTwoDown = buttonThreeDown = false;
-  mode=0;
+  mode=3;
   bypass = midiThruOn = false;
   tempo = 400;
   debounceTime = 10;
@@ -168,6 +169,7 @@ void loop() {
       if (mode == MODES) {
         mode=0;
       }
+      arpUp = true;
     }
   }
   else {
@@ -209,25 +211,23 @@ void loop() {
         down();
       else if (mode == UPDOWN) 
         upDown();
+      else if (mode == ONETHREE)
+        oneThree();
 
 
       // stop the previous note
       MIDI.sendNoteOff(notes[playBeat],0,CHANNEL);
-      
+      byte velocity = 127 - analogRead(0)/8;
+
+      // don't let it totally zero out.
+      if (velocity == 0)
+        velocity++;
       // play the current note
-      MIDI.sendNoteOn(notes[playBeat],velocity(),CHANNEL);
+      MIDI.sendNoteOn(notes[playBeat],velocity,CHANNEL);
     }
   }
 }
 
-// determine velocity
-int velocity() {
-  int velocity = 127 - analogRead(0)/8;
-
-  // don't let it totally zero out.
-  if (velocity == 0)
-    velocity++;
-}
 void up() {
   playBeat++;
   if (notes[playBeat] == '\0')
@@ -249,9 +249,9 @@ void upDown() {
   if (sizeof(notes) == 1)
     playBeat=0;
   else
-    if (upDownUp) {
+    if (arpUp) {
       if (notes[playBeat+1] == '\0') {
-        upDownUp = false;           
+        arpUp = false;           
         playBeat--;
       }    
       else
@@ -259,12 +259,26 @@ void upDown() {
     }
     else {
       if (playBeat == 0) {
-        upDownUp = true;
+        arpUp = true;
         playBeat++;
       }
       else
         playBeat--;
     }
+}
+
+void oneThree() {
+  if (arpUp)
+    playBeat += 2;
+  else
+    playBeat--;
+  
+  arpUp = !arpUp;
+  
+  if (notes[playBeat] == '\0') {
+    playBeat = 0;
+    arpUp = true;
+  }
 }
 
 void resetNotes() {
@@ -276,6 +290,7 @@ char button(char button_num)
 {
   return (!(digitalRead(button_num)));
 }
+
 
 
 
