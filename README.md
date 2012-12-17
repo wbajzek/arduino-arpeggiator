@@ -2,7 +2,9 @@ arduino-arpeggiator
 ===================
 
 Arpeggiator based on Arduino and the SparkFun midi shield. 
-It works, but the button interaction is a bit flaky. I need to figure that out.
+It works, but the buttons are a bit flaky. I need to figure that out.
+Next up will probably be midi synch. I might replace hold-mode on/off
+with an octave button, since I will probably always use it in hold mode.
 
 
 Button D2 = Toggle hold-mode on/off
