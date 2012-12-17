@@ -51,7 +51,7 @@ void setup() {
   mode=0;
   bypass = midiThruOn = false;
   tempo = 400;
-  debounceTime = 10;
+  debounceTime = 50;
 
   pinMode(STAT1,OUTPUT);   
   pinMode(STAT2,OUTPUT);
@@ -143,53 +143,9 @@ void loop() {
   tick = millis();
   sei();
 
-  boolean buttonOnePressed = button(BUTTON1);
-  boolean buttonTwoPressed = button(BUTTON2);
-  boolean buttonThreePressed = button(BUTTON3);
-
-  if (buttonOnePressed) {
-    if (!buttonOneDown) {
-      buttonOneDown = true;
-      buttonOneHeldTime = tick;
-      hold = !hold;
-      resetNotes();
-    }
-  }
-  else {
-    buttonOneDown = false;
-    buttonOneHeldTime = 0;
-  }
-
-  if (buttonTwoPressed) {
-    if (!buttonTwoDown) {
-      buttonTwoHeldTime = tick;
-      buttonTwoDown = true;
-      playBeat=0;
-      mode++;
-      if (mode == MODES) {
-        mode=0;
-      }
-      arpUp = true;
-    }
-  }
-  else {
-    buttonTwoDown = false;
-    buttonTwoHeldTime = 0;
-  }
-
-  if (buttonThreePressed) {
-    resetNotes();
-    if (!buttonThreeDown) {
-      buttonThreeDown = true;
-      buttonThreeHeldTime = tick;
-    }
-  }
-  else {
-    buttonThreeDown = false;
-    buttonThreeHeldTime = 0;
-  }
-
-
+  handleButtonOne();
+  handleButtonTwo();
+  handleButtonThree();
 
   tempo = 6000 / ((127-analogRead(1)/8) + 10);
 
@@ -296,6 +252,72 @@ char button(char button_num)
 {
   return (!(digitalRead(button_num)));
 }
+
+
+
+void handleButtonOne() {
+  boolean buttonOnePressed = button(BUTTON1);
+  if (buttonOnePressed) {
+    if (buttonOneHeldTime == 0)
+      buttonOneHeldTime = tick;
+
+    if (!buttonOneDown && (tick - buttonOneHeldTime > debounceTime)) {
+      buttonOneDown = true;
+      hold = !hold;
+      resetNotes();
+    }
+  }
+  else {
+    buttonOneDown = false;
+    buttonOneHeldTime = 0;
+  }
+}
+
+void handleButtonTwo() {
+  boolean buttonTwoPressed = button(BUTTON2);
+  if (buttonTwoPressed) {
+    if (buttonTwoHeldTime == 0)
+      buttonTwoHeldTime = tick;
+
+    if (!buttonTwoDown && (tick - buttonTwoHeldTime > debounceTime)) {
+      buttonTwoDown = true;
+      playBeat=0;
+      mode++;
+      if (mode == MODES) {
+        mode=0;
+      }
+      arpUp = true;
+
+    }
+  }
+  else {
+    buttonTwoDown = false;
+    buttonTwoHeldTime = 0;
+  }
+}
+
+void handleButtonThree() {
+  boolean buttonThreePressed = button(BUTTON3);
+  if (buttonThreePressed) {
+    if (buttonThreeHeldTime == 0)
+      buttonThreeHeldTime = tick;
+
+    if (!buttonThreeDown && (tick - buttonThreeHeldTime > debounceTime)) {
+
+      buttonThreeDown = true;
+      resetNotes();
+    }
+  }
+  else {
+    buttonThreeDown = false;
+    buttonThreeHeldTime = 0;
+  }
+}
+
+
+
+
+
 
 
 
