@@ -1,3 +1,7 @@
+// todo: handle midi clock
+//       http://little-scale.blogspot.com/2008/05/how-to-deal-with-midi-clock-signals-in.html
+// todo: add bypass mode
+
 #include <MIDI.h>
 
 
@@ -7,11 +11,11 @@
 #define BUTTON2  3
 #define BUTTON3  4
 
-
-const int UP     = 0;
-const int DOWN   = 1;
-const int UPDOWN = 2;
-const int MODES  = 3;
+const int CHANNEL = 1;
+const int UP      = 0;
+const int DOWN    = 1;
+const int UPDOWN  = 2;
+const int MODES   = 3;
 
 byte notes[10];
 unsigned long tempo;
@@ -79,15 +83,17 @@ void setup() {
 
 void HandleNoteOn(byte channel, byte pitch, byte velocity) { 
 
-  // Do whatever you want when you receive a Note On.
-
   if (velocity == 0)
     notesHeld--;
   else {
+    // If it's in hold mode and you are not holding any notes down,
+    // it continues to play the previous arpeggio. Once you press
+    // a new note, it resets the arpeggio and starts a new one.
     if (notesHeld==0 && hold) 
-      resetNotes();
+      resetNotes();      
     notesHeld++;
   }
+  // Turn on an LED when notes are held.
   if (notesHeld > 0)
     digitalWrite(STAT2,LOW);
   else
@@ -118,11 +124,7 @@ void HandleNoteOn(byte channel, byte pitch, byte velocity) {
       notes[i] = pitch;
       return;
     }
-
   }
-
-  // Try to keep your callbacks short (no delays ect) as the contrary would slow down the loop()
-  // and have a bad impact on real-time performance.
 }
 
 
@@ -134,12 +136,12 @@ void loop() {
 
   // Call MIDI.read the fastest you can for real-time performance.
   MIDI.read();
-  
+
 
   cli();
   tick = millis();
   sei();
-  
+
   boolean buttonOnePressed = button(BUTTON1);
   boolean buttonTwoPressed = button(BUTTON2);
   boolean buttonThreePressed = button(BUTTON3);
@@ -174,11 +176,11 @@ void loop() {
   }
 
   if (buttonThreePressed) {
-      resetNotes();
-      if (!buttonThreeDown) {
-        buttonThreeDown = true;
-        buttonThreeHeldTime = tick;
-      }
+    resetNotes();
+    if (!buttonThreeDown) {
+      buttonThreeDown = true;
+      buttonThreeHeldTime = tick;
+    }
   }
   else {
     buttonThreeDown = false;
@@ -199,57 +201,70 @@ void loop() {
     blinkOn = true;
 
 
-    // stop the previous note
-    MIDI.sendNoteOff(notes[playBeat],0,1);
-
-    
     if ((hold || notesHeld > 0) && notes[0] != '\0') { 
-      
-      if (mode == UP) {
-        playBeat++;
-        if (notes[playBeat] == '\0')
-          playBeat=0;        
-      }
-      else if (mode == DOWN) {
-        if (playBeat == 0) {
-          playBeat = sizeof(notes)-1;
-          while (notes[playBeat] == '\0') {
-            playBeat--;
-          }
-        }        
-        else       
-          playBeat--;
-      }
-      else if (mode == UPDOWN) {
-        if (sizeof(notes) == 1)
-          playBeat=0;
-        else
-          if (upDownUp) {
-            if (notes[playBeat+1] == '\0') {
-              upDownUp = false;           
-              playBeat--;
-            }    
-            else
-              playBeat++;   
-          }
-          else {
-            if (playBeat == 0) {
-              upDownUp = true;
-              playBeat++;
-            }
-            else
-              playBeat--;
-          }
-      }
-      
 
-      // trigger the current note
-      int velocity = 127 - analogRead(0)/8;
-      if (velocity == 0)
-        velocity++;
-      MIDI.sendNoteOn(notes[playBeat],velocity,1);
+      if (mode == UP) 
+        up();
+      else if (mode == DOWN) 
+        down();
+      else if (mode == UPDOWN) 
+        upDown();
+
+
+      // stop the previous note
+      MIDI.sendNoteOff(notes[playBeat],0,CHANNEL);
+      
+      // play the current note
+      MIDI.sendNoteOn(notes[playBeat],velocity(),CHANNEL);
     }
   }
+}
+
+// determine velocity
+int velocity() {
+  int velocity = 127 - analogRead(0)/8;
+
+  // don't let it totally zero out.
+  if (velocity == 0)
+    velocity++;
+}
+void up() {
+  playBeat++;
+  if (notes[playBeat] == '\0')
+    playBeat=0;     
+}
+
+void down() {
+  if (playBeat == 0) {
+    playBeat = sizeof(notes)-1;
+    while (notes[playBeat] == '\0') {
+      playBeat--;
+    }
+  }        
+  else       
+    playBeat--;
+}
+
+void upDown() {
+  if (sizeof(notes) == 1)
+    playBeat=0;
+  else
+    if (upDownUp) {
+      if (notes[playBeat+1] == '\0') {
+        upDownUp = false;           
+        playBeat--;
+      }    
+      else
+        playBeat++;   
+    }
+    else {
+      if (playBeat == 0) {
+        upDownUp = true;
+        playBeat++;
+      }
+      else
+        playBeat--;
+    }
 }
 
 void resetNotes() {
@@ -261,4 +276,9 @@ char button(char button_num)
 {
   return (!(digitalRead(button_num)));
 }
+
+
+
+
+
 
