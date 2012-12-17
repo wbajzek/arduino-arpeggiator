@@ -217,15 +217,21 @@ void loop() {
 
       // stop the previous note
       MIDI.sendNoteOff(notes[playBeat],0,CHANNEL);
-      byte velocity = 127 - analogRead(0)/8;
 
-      // don't let it totally zero out.
-      if (velocity == 0)
-        velocity++;
       // play the current note
-      MIDI.sendNoteOn(notes[playBeat],velocity,CHANNEL);
+      MIDI.sendNoteOn(notes[playBeat],velocity(),CHANNEL);
     }
   }
+}
+int velocity() {
+  int velocity = 127 - analogRead(0)/8;
+
+  // don't let it totally zero out.
+  if (velocity == 0)
+    velocity++;
+
+  return velocity;
+
 }
 
 void up() {
@@ -272,9 +278,9 @@ void oneThree() {
     playBeat += 2;
   else
     playBeat--;
-  
+
   arpUp = !arpUp;
-  
+
   if (notes[playBeat] == '\0') {
     playBeat = 0;
     arpUp = true;
@@ -290,6 +296,7 @@ char button(char button_num)
 {
   return (!(digitalRead(button_num)));
 }
+
 
 
 
