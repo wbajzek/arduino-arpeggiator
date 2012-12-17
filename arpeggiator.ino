@@ -48,7 +48,7 @@ void setup() {
   hold=true;
   arpUp = true; // used to determine which way arp is going when in updown mode
   buttonOneDown = buttonTwoDown = buttonThreeDown = false;
-  mode=3;
+  mode=0;
   bypass = midiThruOn = false;
   tempo = 400;
   debounceTime = 10;
