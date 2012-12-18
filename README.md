@@ -17,3 +17,6 @@ Button D4 = Stop arpeggio
 Pot A1 = Tempo
 
 Pot A2 = Velocity
+
+
+Depends on http://sourceforge.net/projects/arduinomidilib/
