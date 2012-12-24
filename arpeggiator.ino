@@ -11,12 +11,14 @@
 #define BUTTON2  3
 #define BUTTON3  4
 
-const int CHANNEL  = 1;
-const int UP       = 0;
-const int DOWN     = 1;
-const int UPDOWN   = 2;
-const int ONETHREE = 3;
-const int MODES    = 4;
+const int CHANNEL      = 1;
+const int UP           = 0;
+const int DOWN         = 1;
+const int BOUNCE       = 2;
+const int UPDOWN       = 3;
+const int ONETHREE     = 4;
+const int ONETHREEEVEN = 5;
+const int MODES        = 6;
 
 byte notes[10];
 unsigned long tempo;
@@ -94,6 +96,8 @@ void HandleNoteOn(byte channel, byte pitch, byte velocity) {
       resetNotes();      
     notesHeld++;
   }
+  
+  
   // Turn on an LED when notes are held.
   if (notesHeld > 0)
     digitalWrite(STAT2,LOW);
@@ -101,8 +105,10 @@ void HandleNoteOn(byte channel, byte pitch, byte velocity) {
     digitalWrite(STAT2,HIGH);
 
 
-  for (int i = 0; i < sizeof(notes); i++) {
 
+
+  for (int i = 0; i < sizeof(notes); i++) {
+    
     if (velocity == 0) {
       if (!hold && notes[i] >= pitch) {
         // remove this note
@@ -111,19 +117,22 @@ void HandleNoteOn(byte channel, byte pitch, byte velocity) {
       }
     }
     else {
-      if (notes[i] == '\0') {
+      
+      if (notes[i] == pitch)
+        return;   // already in arpeggio
+      else if (notes[i] != '\0' && notes[i] < pitch)
+        continue; // skip
+      else {
+        
+        // scoot the rest of the arpeggio array over
+        for (int j = sizeof(notes); j > i; j--)
+          notes[j] = notes[j-1];
+  
+        // insert the note
         notes[i] = pitch;
         return;
+        
       }
-
-      if (notes[i] <= pitch)
-        continue;
-
-      for (int j = sizeof(notes); j > i; j--)
-        notes[j] = notes[j-1];
-
-      notes[i] = pitch;
-      return;
     }
   }
 }
@@ -161,21 +170,31 @@ void loop() {
 
     if ((hold || notesHeld > 0) && notes[0] != '\0') { 
 
+
+      // stop the previous note
+      // MIDI.sendNoteOff(notes[playBeat],0,CHANNEL);
+
+      // fixes a bug where a random note would sometimes get played when switching chords
+      if (notes[playBeat] == '\0')
+        playBeat = 0;
+       
+      // play the current note
+      MIDI.sendNoteOn(notes[playBeat],velocity(),CHANNEL);
+
+
       if (mode == UP) 
         up();
       else if (mode == DOWN) 
         down();
+      else if (mode == BOUNCE) 
+        bounce();
       else if (mode == UPDOWN) 
         upDown();
       else if (mode == ONETHREE)
         oneThree();
-
-
-      // stop the previous note
-      MIDI.sendNoteOff(notes[playBeat],0,CHANNEL);
-
-      // play the current note
-      MIDI.sendNoteOn(notes[playBeat],velocity(),CHANNEL);
+      else if (mode == ONETHREEEVEN)
+        oneThreeEven();
+      
     }
   }
 }
@@ -207,7 +226,8 @@ void down() {
     playBeat--;
 }
 
-void upDown() {
+
+void bounce() {
   if (sizeof(notes) == 1)
     playBeat=0;
   else
@@ -229,6 +249,27 @@ void upDown() {
     }
 }
 
+
+void upDown() {
+  if (sizeof(notes) == 1)
+    playBeat=0;
+  else
+    if (arpUp) {
+      if (notes[playBeat+1] == '\0') {
+        arpUp = false;           
+      }    
+      else
+        playBeat++;   
+    }
+    else {
+      if (playBeat == 0) {
+        arpUp = true;
+      }
+      else
+        playBeat--;
+    }
+}
+
 void oneThree() {
   if (arpUp)
     playBeat += 2;
@@ -242,6 +283,26 @@ void oneThree() {
     arpUp = true;
   }
 }
+
+void oneThreeEven() {
+  
+  if (notes[playBeat+1] == '\0') {
+    playBeat = 0;
+    arpUp = true;
+    return;
+  }
+  
+  
+  if (arpUp)
+    playBeat += 2;
+  else
+    playBeat--;
+
+  arpUp = !arpUp;
+
+    
+}
+
 
 void resetNotes() {
   for (int i = 0; i < sizeof(notes); i++)
