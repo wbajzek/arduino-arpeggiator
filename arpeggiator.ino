@@ -32,6 +32,7 @@ unsigned long debounceTime;
 int playBeat;
 int notesHeld;
 int mode;
+int clockTick;
 boolean blinkOn;
 boolean hold;
 boolean buttonOneDown;
@@ -40,6 +41,7 @@ boolean buttonThreeDown;
 boolean bypass;
 boolean midiThruOn;
 boolean arpUp;
+boolean clockSync;
 
 void setup() {
   blinkTime = lastTime = millis();
@@ -54,6 +56,8 @@ void setup() {
   bypass = midiThruOn = false;
   tempo = 400;
   debounceTime = 50;
+  clockSync = false;
+  clockTick = 1;
 
   pinMode(STAT1,OUTPUT);   
   pinMode(STAT2,OUTPUT);
@@ -71,6 +75,9 @@ void setup() {
   // Connect the HandleNoteOn function to the library, so it is called upon reception of a NoteOn.
   MIDI.setHandleNoteOn(HandleNoteOn);  // Put only the name of the function
   MIDI.setHandleControlChange (HandleControlChange);
+  MIDI.setHandleClock (HandleClock);
+  MIDI.setHandleStart (HandleStart);
+  MIDI.setHandleStop (HandleStop);
   MIDI.turnThruOff();
 
   digitalWrite(STAT1,HIGH);
@@ -142,6 +149,35 @@ void HandleControlChange (byte channel, byte number, byte value) {
   MIDI.sendControlChange(number,value,channel); 
 }
 
+void HandleStart () {
+  clockSync = true;  
+  clockTick = 1;
+  playBeat = 0;
+  cli();
+  tick = millis();
+  sei();
+
+
+  handleTick(tick);
+}
+void HandleStop () {
+  clockSync = false;
+}
+void HandleClock () {
+
+  cli();
+  tick = millis();
+  sei();
+  
+  if (clockTick >= (int)map(analogRead(1),0,1023,1,4)*6 + 1) {
+    handleTick(tick);
+    clockTick = 1;
+  }
+  
+  
+  clockTick++;
+}
+
 void loop() {
 
   // Call MIDI.read the fastest you can for real-time performance.
@@ -156,13 +192,20 @@ void loop() {
   handleButtonTwo();
   handleButtonThree();
 
-  tempo = 6000 / ((127-analogRead(1)/8) + 10);
+  if (!clockSync) {  
+    tempo = 6000 / ((127-analogRead(1)/8) + 10);
+    handleTick(tick);
+  }
+  
+}
 
+void handleTick(unsigned long tick) {
+  
   if (blinkOn && tick - blinkTime > 50) {
     blinkOn=false;
     digitalWrite(STAT1,HIGH);
   }
-  if (tick - lastTime > tempo) {
+  if (clockSync || tick - lastTime > tempo) {
     blinkTime = lastTime = tick;
     digitalWrite(STAT1,LOW);
     blinkOn = true;
@@ -198,6 +241,8 @@ void loop() {
     }
   }
 }
+
+
 int velocity() {
   int velocity = 127 - analogRead(0)/8;
 
