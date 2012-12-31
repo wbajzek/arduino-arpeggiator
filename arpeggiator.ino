@@ -1,6 +1,4 @@
-// todo: handle midi clock
-//       http://little-scale.blogspot.com/2008/05/how-to-deal-with-midi-clock-signals-in.html
-// todo: add bypass mode
+// todo: add bypass mode?
 
 #include <MIDI.h>
 
